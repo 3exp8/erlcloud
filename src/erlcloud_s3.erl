@@ -1085,6 +1085,16 @@ signature(Config, Path, Date, Region, QueryParams, Headers, Payload) ->
     [Result] = erlcloud_aws:base16(erlcloud_util:sha256_mac( SigningKey, ToSign)),
     Result.
 
+-spec signature_upload(aws_config(), string(), string(), string(), proplist(), proplist(), string()) -> string().
+signature_upload(Config, Path, Date, Region, QueryParams, Headers, Payload) ->
+    Service = "s3",
+    CredentialScope = erlcloud_aws:credential_scope(Date, Region, Service),
+    {CanonicalRequest, _} = erlcloud_aws:canonical_request(put, Path, QueryParams, Headers, Payload),
+    ToSign = erlcloud_aws:to_sign(Date, CredentialScope, CanonicalRequest),
+    SigningKey = erlcloud_aws:signing_key(Config, Date, Region, Service),
+    [Result] = erlcloud_aws:base16(erlcloud_util:sha256_mac( SigningKey, ToSign)),
+    Result.
+
 -spec make_presigned_v4_url(integer(), string(), string(), proplist()) -> {ok, string()} | {error, term()}.
 make_presigned_v4_url(ExpireTime, BucketName, Key, Params) ->
     make_presigned_v4_url(ExpireTime, BucketName, Key, Params, default_config()).
@@ -1115,7 +1125,7 @@ make_presigned_v4_url(ExpireTime, BucketName, Key, QueryParams, Config) when is_
            {"X-Amz-SignedHeaders", "host"}] ++ QueryParams,
     Headers = [{"host", Host}],
     Payload = "UNSIGNED-PAYLOAD",
-    Signature = signature(Config, Path, Date, Region, QP1, Headers, Payload),
+    Signature = signature_upload(Config, Path, Date, Region, QP1, Headers, Payload),
     QueryStr = erlcloud_http:make_query_string(QP1 ++ [{"X-Amz-Signature", Signature}], no_assignment),
     lists:flatten([URL, "?", QueryStr]).
 
