@@ -1158,7 +1158,7 @@ is_throttling_error_response(RequestResponse) ->
 %% @see profile/2
 %%
 profile() ->
-    profile( default, [] ).
+    profile( app_env, [] ).
 
 
 %%%---------------------------------------------------------------------------
@@ -1235,14 +1235,29 @@ profile( Name ) ->
 %%  </li>
 %% </ul>
 %%
+
 profile( Name, Options ) ->
     try
         OptionsRec = profile_options( Options ),
-        Profiles = profiles_read(),
+        Profiles = 
+            case Name of 
+                app_env -> 
+                    profiles_read_app_env(Name);
+                _ -> 
+                    profiles_read()
+            end,
         profiles_resolve( Name, Profiles, OptionsRec )
     catch
         throw:Error -> Error
     end.
+
+profiles_read_app_env(Name) ->
+    [
+    {Name,[
+        {aws_access_key_id,list_to_binary(application:get_env(erlcloud, s3_access_key_id, ""))},
+        {aws_secret_access_key,list_to_binary(application:get_env(erlcloud, s3_secret_access_key, ""))}
+    ]}
+    ].
 
 profile_options( Options ) ->
     SessionName = proplists:get_value( role_session_name, Options, "erlcloud" ),
